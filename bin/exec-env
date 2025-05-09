@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+export LUA_PATH="$ASDF_INSTALL_PATH/share/luajit-2.1/?.lua;$ASDF_INSTALL_PATH/share/luajit-2.1/?/init.lua;$("$ASDF_INSTALL_PATH"/bin/luarocks path --lr-path)"
+export LUA_CPATH="$("$ASDF_INSTALL_PATH"/bin/luarocks path --lr-cpath)"
+
+export ASDF_LUAROCKS_BIN_DIR="$ASDF_INSTALL_PATH/bin"
+export ASDF_LUAROCKS_LIB_DIR="$ASDF_INSTALL_PATH/lib/lua/5.1"

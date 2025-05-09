@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # We have no need for filename expansion / globbing,
 # so we'll disable it here.
 # We'll take advantage of the safety this confers when doing something like:
@@ -69,12 +68,42 @@ install_luaJIT() {
     make amalg "${luaJIT_configure_options[@]}" || exit 1
     make install "${luaJIT_configure_options[@]}" || exit 1
 
-    # luajit beta versions do not symlink luajit to the built binary,
+    # luajit rolling releases do not symlink luajit to the built binary,
     # so we'll do that manually here, for convenience and also so
     # luarocks can install.
-    if [[ $luaJIT_version == *"beta"* ]]; then
-      ln -sf luajit-"$luaJIT_version" "$ASDF_INSTALL_PATH"/bin/luajit
+    #
+    # temporarily disable fail-fast
+    set -x
+    set +e
+    local luaJIT_altver
+    luaJIT_altver="$(sed -n 's/^.*LUAJIT_VERSION[[:space:]]*"[^0-9]*\(.*\)"$/\1/p' "${luaJIT_source_path}/src/luajit.h")"
+
+    local has_bare_luajit_binary=1
+    local has_symlink_to_luajit_binary=1
+
+    if [[ -x "$ASDF_INSTALL_PATH"/bin/luajit ]]; then
+      has_bare_luajit_binary=0
     fi
+
+    if [[ -L "$ASDF_INSTALL_PATH"/bin/luajit ]] && [[ -x "$(readlink -f "$ASDF_INSTALL_PATH"/bin/luajit)" ]]; then
+      has_symlink_to_luajit_binary=0
+    fi
+
+    if ! { [[ has_bare_luajit_binary -eq 0 ]] || [[ has_symlink_to_luajit_binary -eq 0 ]]; }; then
+      if [[ -x "$ASDF_INSTALL_PATH"/bin/luajit-"$luaJIT_version" ]]; then
+        ln -sf luajit-"$luaJIT_version" "$ASDF_INSTALL_PATH"/bin/luajit
+      elif [[ -x "$ASDF_INSTALL_PATH"/bin/luajit-"$luaJIT_altver" ]]; then
+        ln -sf luajit-"$luaJIT_altver" "$ASDF_INSTALL_PATH"/bin/luajit
+      else
+        printf "Couldn't locate a luajit binary to symlink!\n" >&2
+        exit 1
+      fi
+    fi
+    #re-enable fail-fast
+    set -e
+    set +x
+
+    ls "$ASDF_INSTALL_PATH"/bin/luajit
 
     ##########################################################################
 
@@ -144,10 +173,11 @@ construct_lua_rocks_configure_options() {
     fi
     local configure_options=(
       --prefix="$install_path"
-      --lua-suffix="jit"
+      --with-lua-interpreter="luajit"
       --with-lua="$install_path"
       --with-lua-include="$luaJIT_include_path"
       --with-lua-lib="$install_path/lib"
+      --lua-version="5.1"
     )
     # shellcheck disable=SC2206
     configure_options+=(
